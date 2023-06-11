@@ -1,0 +1,37 @@
+{
+  "title": "Sentinel Diving|teaho.net",
+  "plugins": ["disqus",
+    "mermaid",
+    "include-codeblock",
+    "ga",
+    "anchors",
+    "plantuml",
+    "back-to-top-button",
+    "page-toc-button",
+    "-lunr", "-search", "search-plus"
+  ],
+  "pluginsConfig": {
+    "disqus": {
+      "shortName": "spring-source-code-learning-gitbook-teaho-net"
+    },
+    "include-codeblock": {
+      "template": "default",
+      "unindent": true,
+      "theme": "monokai"
+    },
+    "ga": {
+      "token": "UA-90704189-1"
+    },
+    "page-treeview": {
+      "copyright": "",
+      "minHeaderCount": "4",
+      "minHeaderDeep": "10"
+
+    }
+  }
+}
+
+
+
+
+
