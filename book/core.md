@@ -12,11 +12,22 @@
 >2. 定义规则
 >3. 检验规则是否生效
 
+想了解Sentinel就绕不开Sph，SphU，SphO，CtSph等。我想有人会好奇这名字代表什么意思，  
+官方说了Sph是一个魔法名(magic name)，原来指代信号量Semaphore，历史原因没法改。  
+U、O网上传闻代表Unit、Operation。具体留待Eric Zhao, fangjian, mercy哥解释了。
 
-##
+## 初始化
+
+InitExecutor.doInit()
 
 
+[sentinel_init_logic_flow.jpg](sentinel_init_logic_flow.jpg)
 
+CommandCenterInitFunc
+HeartbeatSenderInitFunc
+MetricCallbackInit
+
+## 执行
 
 
 ## 总结
