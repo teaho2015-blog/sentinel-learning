@@ -12,7 +12,7 @@
   ],
   "pluginsConfig": {
     "disqus": {
-      "shortName": "https://about-sentinel.teaho.net"
+      "shortName": "about-sentinel.teaho.net"
     },
     "include-codeblock": {
       "template": "default",
