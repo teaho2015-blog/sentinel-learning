@@ -12,7 +12,7 @@
   ],
   "pluginsConfig": {
     "disqus": {
-      "shortName": "spring-source-code-learning-gitbook-teaho-net"
+      "shortName": "https://about-sentinel.teaho.net"
     },
     "include-codeblock": {
       "template": "default",
@@ -20,7 +20,7 @@
       "theme": "monokai"
     },
     "ga": {
-      "token": "UA-90704189-1"
+      "token": "G-RJ01RWNFGT"
     },
     "page-treeview": {
       "copyright": "",
