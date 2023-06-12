@@ -18,14 +18,49 @@ U、O网上传闻代表Unit、Operation。具体留待Eric Zhao, fangjian, mercy
 
 ## 初始化
 
-InitExecutor.doInit()
+Sentinel初始化会调用`InitExecutor.doInit()`这个方法。进行如下初始化：
+![sentinel_init_logic_flow.jpg](sentinel_init_logic_flow.jpg)
+
+1. 通过SPI加载InitFunc（Sentinel SPI类似Spring SPI，有兴趣可看下@SPI注解和SPILoader类）。
+2. 排序
+3. 调用InitFunc集合的init方法
+
+我们看看这三个典型的InitFunc：
+* CommandCenterInitFunc
+* HeartbeatSenderInitFunc
+* MetricCallbackInit
+
+### CommandCenter
+
+CommandCenterInitFunc能够初始化CommandCenter。
+
+CommandCenter可以理解为提供服务，我们可以通过这个服务接口和Sentinel core通讯，具体接口由CommandHandler提供。
+
+> The simple command center provides service to exchange information.
 
 
-[sentinel_init_logic_flow.jpg](sentinel_init_logic_flow.jpg)
+围绕CommandCenter有这些工具类：
+* @CommandMapping 
+* CommandHandler
+* CommandHandlerInterceptor
 
-CommandCenterInitFunc
-HeartbeatSenderInitFunc
-MetricCallbackInit
+CommandCenter有：
+* SimpleHttpCommandCenter 基于java ServerSocket的简单http实现
+* NettyHttpCommandCenter  netty实现
+* SpringMvcHttpCommandCenter 基于Spring Boot的提供Spring MVC handlerMapping的实现。
+
+简单说下常用的SimpleHttpCommandCenter实现：
+1. 启动单线程executor去执行server启动。
+2. bizExecutor是处理请求的executor。
+3. HttpEventTask读取HTTP报文，解析出CommandRequest，并执行CommandHandler。
+4. 返回数据。
+
+
+### HeartbeatSender
+
+
+
+### MetricCallback
 
 ## 执行
 
