@@ -77,7 +77,10 @@ HeartbeatSender是维持Sentinel core和Sentinel dashboard心跳的组件。
     scheduleHeartbeatTask(sender, interval);
 ~~~
 
-
+HeartbeatSender的实现有：
+* SimpleHttpHeartbeatSender 基于java Socket的http实现
+* HttpHeartbeatSender 使用netty http发送心跳
+* SpringMvcHttpHeartbeatSender 使用httpclient发送心跳
 
 
 ### MetricCallback
