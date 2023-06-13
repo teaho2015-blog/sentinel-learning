@@ -85,6 +85,15 @@ HeartbeatSender的实现有：
 
 ### MetricCallback
 
+
+~~~~
+    StatisticSlotCallbackRegistry.addEntryCallback(MetricEntryCallback.class.getCanonicalName(),
+        new MetricEntryCallback());
+    StatisticSlotCallbackRegistry.addExitCallback(MetricExitCallback.class.getCanonicalName(),
+        new MetricExitCallback());
+~~~~
+
+
 ## 执行
 
 
