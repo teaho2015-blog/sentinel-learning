@@ -25,8 +25,8 @@ Sentinel初始化会调用`InitExecutor.doInit()`这个方法。进行如下初�
 2. 排序
 3. 调用InitFunc集合的init方法
 
-我们看看这三个典型的InitFunc：
-* CommandCenterInitFunc
+我们看看这三个核心的InitFunc：
+* CommandCenterInitFunc 
 * HeartbeatSenderInitFunc
 * MetricCallbackInit
 
@@ -55,8 +55,28 @@ CommandCenter有：
 3. HttpEventTask读取HTTP报文，解析出CommandRequest，并执行CommandHandler。
 4. 返回数据。
 
-
 ### HeartbeatSender
+
+
+HeartbeatSenderInitFunc通过SPI初始化HeartbeatSender。  
+HeartbeatSender是维持Sentinel core和Sentinel dashboard心跳的组件。
+
+~~~
+    //通过SPI获取HeartbeatSender
+    HeartbeatSender sender = HeartbeatSenderProvider.getHeartbeatSender();
+    if (sender == null) {
+        RecordLog.warn("[HeartbeatSenderInitFunc] WARN: No HeartbeatSender loaded");
+        return;
+    }
+    //初始化定时任务器
+    initSchedulerIfNeeded();
+    //获取心跳发送周期 1. 配置 2. 获取不到则用HeartbeatSender的interval
+    long interval = retrieveInterval(sender);
+    setIntervalIfNotExists(interval);
+    //启动心跳任务
+    scheduleHeartbeatTask(sender, interval);
+~~~
+
 
 
 
