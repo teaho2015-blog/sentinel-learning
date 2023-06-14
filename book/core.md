@@ -83,18 +83,28 @@ HeartbeatSender的实现有：
 * SpringMvcHttpHeartbeatSender 使用httpclient发送心跳
 
 
-### MetricCallback
+### MetricCallbackInit
 
+
+`MetricEntryCallback`和`MetricExitCallback`通过`MetricCallbackInit`初始化。
 
 ~~~~
+public void init() throws Exception {
     StatisticSlotCallbackRegistry.addEntryCallback(MetricEntryCallback.class.getCanonicalName(),
         new MetricEntryCallback());
     StatisticSlotCallbackRegistry.addExitCallback(MetricExitCallback.class.getCanonicalName(),
         new MetricExitCallback());
+}
 ~~~~
 
+我们可以通过StatisticSlotCallbackRegistry.addEntryCallback和addExitCallback，增加Sentinel规则监控。  
+也可通过定义AdvancedMetricExtension接口SPI实现类来做到增加Sentinel规则监控。
 
 ## 执行
+
+
+
+
 
 
 ## 总结
