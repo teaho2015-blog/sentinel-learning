@@ -1,4 +1,4 @@
-# Sentinel core执行分析
+# Sentinel core原理分析
 
 ## 简介
 
@@ -14,7 +14,9 @@
 
 想了解Sentinel就绕不开Sph，SphU，SphO，CtSph等。我想有人会好奇这名字代表什么意思，  
 官方说了Sph是一个魔法名(magic name)，原来指代信号量Semaphore，历史原因没法改。  
-U、O网上传闻代表Unit、Operation。具体留待Eric Zhao, fangjian, mercy哥解释了。
+U、O网上传闻代表Unit、Operation。
+
+下面说下初始化和执行流程。
 
 ## 初始化
 
@@ -103,11 +105,80 @@ public void init() throws Exception {
 ## 执行
 
 
+我们知道Sentinel一般使用`SphU.entry`作为入口。Sentinel core主流程可简单描述为：
+1. 定义资源 （目前有两种string资源和Method资源）
+2. 定义规则（ProcessorSlot）
+3. 检验规则是否生效
+>Do all Rules checking about the resource.  
+>Each distinct resource will use a ProcessorSlot to do rules checking. Same resource will use same ProcessorSlot globally.
 
 
+SphU下面会执行如下语句：（Env.sph默认为CtSph。）
+````
+    //SphU
+    Env.sph.entry(name, trafficType, batchCount, args)
+
+    //CtSph
+    public Entry entry(String name, EntryType type, int count, Object... args) throws BlockException {
+        StringResourceWrapper resource = new StringResourceWrapper(name, type);
+        return entry(resource, count, args);
+    }
+````
+
+我们接下来看下CtSph的核心流程：  
+
+````
+    private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args)
+        throws BlockException {
+        Context context = ContextUtil.getContext();
+        if (context instanceof NullContext) {
+            // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
+            // so here init the entry only. No rule checking will be done.
+            return new CtEntry(resourceWrapper, null, context);
+        }
+
+        if (context == null) {
+            // Using default context.
+            context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);
+        }
+
+        // Global switch is close, no rule checking will do.
+        if (!Constants.ON) {
+            return new CtEntry(resourceWrapper, null, context);
+        }
+
+        ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
+
+        /*
+         * Means amount of resources (slot chain) exceeds {@link Constants.MAX_SLOT_CHAIN_SIZE},
+         * so no rule checking will be done.
+         */
+        if (chain == null) {
+            return new CtEntry(resourceWrapper, null, context);
+        }
+
+        Entry e = new CtEntry(resourceWrapper, chain, context);
+        try {
+            chain.entry(context, resourceWrapper, null, count, prioritized, args);
+        } catch (BlockException e1) {
+            e.exit(count, args);
+            throw e1;
+        } catch (Throwable e1) {
+            // This should not happen, unless there are errors existing in Sentinel internal.
+            RecordLog.info("Sentinel unexpected exception", e1);
+        }
+        return e;
+    }
+
+````
 
 
 ## 总结
+
+![img.png](img.png)
+
+
+## 后记
 
 以前对Sentinel有一些源码的阅读和理解，不得不感叹看过的东西又再忘记了，这次团队中一位小伙伴需要基于Sentinel开发一个组件，我需要再熟悉下做兜底。
 本节主要聚焦于核心执行流程（非异步侧）。
