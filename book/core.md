@@ -130,13 +130,17 @@ SphU下面会执行如下语句：（Env.sph默认为CtSph。）
 ````
     private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args)
         throws BlockException {
+        //1. 获取当前线程的上下文
         Context context = ContextUtil.getContext();
+        
+        //2. 如果超过了最大context数(2000),直接返回
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
             // so here init the entry only. No rule checking will be done.
             return new CtEntry(resourceWrapper, null, context);
         }
-
+        
+        //2. 如果是在最上层，初始化context
         if (context == null) {
             // Using default context.
             context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);
@@ -146,21 +150,25 @@ SphU下面会执行如下语句：（Env.sph默认为CtSph。）
         if (!Constants.ON) {
             return new CtEntry(resourceWrapper, null, context);
         }
-
+        
+        //3. 获取slot调用链
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
          * Means amount of resources (slot chain) exceeds {@link Constants.MAX_SLOT_CHAIN_SIZE},
          * so no rule checking will be done.
          */
+         //4. 如果超过了MAX_SLOT_CHAIN_SIZE(6000)，则不执行rule检查
         if (chain == null) {
             return new CtEntry(resourceWrapper, null, context);
         }
-
+        // 5. 生成entry类（入口）
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
+            //6. 执行slot链
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
         } catch (BlockException e1) {
+            // 规则检查，抛出sentiinel的block异常，调用exit做上下文处理和记录
             e.exit(count, args);
             throw e1;
         } catch (Throwable e1) {
@@ -171,6 +179,61 @@ SphU下面会执行如下语句：（Env.sph默认为CtSph。）
     }
 
 ````
+
+上面是核心流程，我们重点分析slot流程和Context的结构。
+
+### Slot chain
+
+
+slot chain是在上面第三步初始化的`lookProcessChain(resourceWrapper);`。
+````
+    //CtSph
+    ProcessorSlot<Object> lookProcessChain(ResourceWrapper resourceWrapper) {
+        ProcessorSlotChain chain = chainMap.get(resourceWrapper);
+        if (chain == null) {
+            synchronized (LOCK) {
+                chain = chainMap.get(resourceWrapper);
+                if (chain == null) {
+                    // Entry size limit.
+                    if (chainMap.size() >= Constants.MAX_SLOT_CHAIN_SIZE) {
+                        return null;
+                    }
+
+                    chain = SlotChainProvider.newSlotChain();
+                    //省略
+                }
+            }
+        }
+        return chain;
+    }
+    
+    //SlotChainProvider
+    slotChainBuilder = SpiLoader.of(SlotChainBuilder.class).loadFirstInstanceOrDefault();
+    
+    //DefaultSlotChainBuilder
+    List<ProcessorSlot> sortedSlotList = SpiLoader.of(ProcessorSlot.class).loadInstanceListSorted();
+````
+说说初始化步骤：
+1. 通过单例方式初始化resource的ProcessorSlotChain。
+2. 通过SPI初始化SlotChainBuilder
+3. 通过SPI初始化ProcessorSlot集合
+
+
+ProcessorSlotChain的结构是一个单向链表，默认的链表元素有：
+1. NodeSelectorSlot 
+2. ClusterBuilderSlot
+3. LogSlot
+4. StatisticSlot
+5. AuthoritySlot
+6. SystemSlot
+7. FlowSlot
+8. DegradeSlot
+
+
+
+`DefaultNode extends StatisticNode`
+>A Node used to hold statistics for specific resource name in the specific context. Each distinct resource in each distinct Context will corresponding to a DefaultNode.
+>This class may have a list of sub DefaultNodes. Child nodes will be created when calling SphU#entry() or SphO@entry() multiple times in the same Context.
 
 
 ## 总结
