@@ -151,7 +151,7 @@ SphU下面会执行如下语句：（Env.sph默认为CtSph。）
             return new CtEntry(resourceWrapper, null, context);
         }
         
-        //3. 获取slot调用链
+        //3. 获取slot调用链，以资源维度生成chain
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
@@ -180,10 +180,14 @@ SphU下面会执行如下语句：（Env.sph默认为CtSph。）
 
 ````
 
-上面是核心流程，我们重点分析slot流程和Context的结构。
+上面是核心流程，我们**重点分析slot流程和Context的结构**。
 
 ### Slot chain
 
+引用官方文档的话，
+>在 Sentinel 里面，所有的资源都对应一个资源名称（resourceName），每次资源调用都会创建一个 Entry 对象。
+> Entry 可以通过对主流框架的适配自动创建，也可以通过注解的方式或调用 SphU API 显式创建。
+> Entry 创建的时候，同时也会创建一系列功能插槽（slot chain）。
 
 slot chain是在上面第三步初始化的`lookProcessChain(resourceWrapper);`。
 ````
@@ -219,16 +223,15 @@ slot chain是在上面第三步初始化的`lookProcessChain(resourceWrapper);`�
 3. 通过SPI初始化ProcessorSlot集合
 
 
-ProcessorSlotChain的结构是一个单向链表，默认的链表元素有：
-1. NodeSelectorSlot 
-2. ClusterBuilderSlot
+ProcessorSlotChain的结构是一个单向链表，默认的链表元素有（按执行顺序）(部分描述取自wiki)：
+1. NodeSelectorSlot 负责收集资源的路径，并将这些资源的调用路径，以树状结构存储起来，用于根据调用路径来限流降级；
+2. ClusterBuilderSlot 则用于存储资源的统计信息以及调用者信息，例如该资源的`RT, QPS, thread count`等等，这些信息将用作为多维度限流，降级的依据；
 3. LogSlot
-4. StatisticSlot
-5. AuthoritySlot
+4. StatisticSlot 用于记录、统计不同纬度的`runtime`指标监控信息；
+5. AuthoritySlot 
 6. SystemSlot
 7. FlowSlot
 8. DegradeSlot
-
 
 
 `DefaultNode extends StatisticNode`
