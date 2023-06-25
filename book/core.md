@@ -226,17 +226,26 @@ slot chain是在上面第三步初始化的`lookProcessChain(resourceWrapper);`�
 ProcessorSlotChain的结构是一个单向链表，默认的链表元素有（按执行顺序）(部分描述取自wiki)：
 1. NodeSelectorSlot 负责收集资源的路径，并将这些资源的调用路径，以树状结构存储起来，用于根据调用路径来限流降级；
 2. ClusterBuilderSlot 则用于存储资源的统计信息以及调用者信息，例如该资源的`RT, QPS, thread count`等等，这些信息将用作为多维度限流，降级的依据；
-3. LogSlot
+3. LogSlot 打印一些block日志
 4. StatisticSlot 用于记录、统计不同纬度的`runtime`指标监控信息；
-5. AuthoritySlot 
-6. SystemSlot
-7. FlowSlot
-8. DegradeSlot
+5. AuthoritySlot 黑白名单控制，以资源名为缓存维度，以origin（app）为控制维度。
+6. SystemSlot 用于系统负载限制，可以对总体的应用数据qps、thread、rt达到某阈值做block, 也可以对系统load、cpu用量达到某阈值做block。
+7. FlowSlot 限流策略实现，基于阈值类型、流控模式、效果（fail fast、warm up、queue wait）这几个维度去做控制。
+8. DegradeSlot 降级策略实现，有基于rt、异常比例、异常次数三种方式降级。
 
+以上slot是执行流程。
+
+数据结构在Context中进行解读。
+
+
+### Context结构
 
 `DefaultNode extends StatisticNode`
 >A Node used to hold statistics for specific resource name in the specific context. Each distinct resource in each distinct Context will corresponding to a DefaultNode.
 >This class may have a list of sub DefaultNodes. Child nodes will be created when calling SphU#entry() or SphO@entry() multiple times in the same Context.
+
+
+### leapArray
 
 
 ## 总结
