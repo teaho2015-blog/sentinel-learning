@@ -238,14 +238,86 @@ ProcessorSlotChain的结构是一个单向链表，默认的链表元素有（�
 数据结构在Context中进行解读。
 
 
-### Context结构
+### Sentinel Context结构
 
-`DefaultNode extends StatisticNode`
->A Node used to hold statistics for specific resource name in the specific context. Each distinct resource in each distinct Context will corresponding to a DefaultNode.
->This class may have a list of sub DefaultNodes. Child nodes will be created when calling SphU#entry() or SphO@entry() multiple times in the same Context.
+我们先看这段例子代码的：
+````
+        // 配置规则.
+        initFlowRules();
+
+        ContextUtil.enter("entrance1", "appA");
+        Entry nodeA = null;
+        try {
+            nodeA = SphU.entry("nodeA");
+        } catch (BlockException e) {
+            // 处理被流控的逻辑
+            System.out.println("1 blocked!");
+        }
+        if (nodeA != null) {
+            nodeA.exit();
+        }
+        ContextUtil.exit();
+
+        ContextUtil.enter("entrance2", "appB");
+        try {
+            nodeA = SphU.entry("nodeB");
+        } catch (BlockException e) {
+            // 处理被流控的逻辑
+            System.out.println("node b blocked!");
+        }
+        if (nodeA != null) {
+            nodeA.exit();
+        }
+        ContextUtil.exit();
+
+        ContextUtil.enter("entrance2", "appA");
+        try {
+            nodeA = SphU.entry("nodeA");
+        } catch (BlockException e) {
+            // 处理被流控的逻辑
+            System.out.println("nodeA 2 blocked!");
+        }
+        if (nodeA != null) {
+            nodeA.exit();
+        }
+        ContextUtil.exit();
 
 
-### leapArray
+        try {
+            nodeA = SphU.entry("nodeC");
+        } catch (BlockException e) {
+            // 处理被流控的逻辑
+            System.out.println("nodeC blocked!");
+        }
+        if (nodeA != null) {
+            nodeA.exit();
+        }
+````
+
+这段代码执行时的整体数据依赖关系：
+![context_node_struct.jpg](context_node_struct.jpg)
+
+
+可看到Context的结构包含了：
+* name
+* entranceNode
+* curEntry
+* origin
+
+CtEntry是当前Context中的一个链表结构，指代一个入口，包含：
+* 父子entry
+* context
+* ProcessSlotChain
+* curNode
+
+
+
+
+
+
+
+
+#### StatisticNode和leapArray
 
 
 ## 总结
