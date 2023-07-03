@@ -319,10 +319,10 @@ CtEntry是当前Context中的一个链表结构，指代一个入口，包含：
 统计的相关数据都用到node我们来看下Node的继承关系：
 ![img_2.png](img_2.png)
 
-我们看到顶级父类是StatisticNode里面核心的属性是：`rollingCounterInSecond`和`rollingCounterInMinute`。其实现的数据结构就是LeapArray<MetricBucket>。  
+我们看到顶级父类是StatisticNode里面核心的属性是：`rollingCounterInSecond`和`rollingCounterInMinute`。其实现的数据结构就是LeapArray<MetricBucket>。 （DegradeSlot熔断降级是额外新增了LeapArray去统计）  
 LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分为取样个数(sampleCount)。
 * int windowLengthInMs 单窗格的毫秒
-* int sampleCount 取样个数
+* int sampleCount 取样个数 `sampleCount = intervalInMs / windowLengthInMs`
 * int intervalInMs 间隔时间(ms)
 * double intervalInSecond 间隔的时间(s)
 * AtomicReferenceArray<WindowWrap<MetricBucket>> array 存储窗格的接口。
@@ -339,19 +339,127 @@ LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分
 结构整理如下：
 ![leapArray_struct.jpg](leapArray_struct.jpg)
 
+分析下leapArray的核心方法：
+````
+    
+    // 用 当前时间 根据 窗格时长 计算出当前时间的滑动窗口的 数组下标 
+    private int calculateTimeIdx(/*@Valid*/ long timeMillis) {
+        long timeId = timeMillis / windowLengthInMs;
+        return (int) (timeId % array.length());
+    }
+
+    // 用 当前时间 根据 窗格时长 计算出当前滑动窗口的 开始时间 例如：12 - 12%2 = 10
+    protected long calculateWindowStart(/*@Valid*/ long timeMillis) {
+        return timeMillis - timeMillis % windowLengthInMs;
+    }
+    
+    
+    
+    public WindowWrap<T> currentWindow(long timeMillis) {
+        if (timeMillis < 0) {
+            return null;
+        }
+
+        //窗口滑动方法 计算窗格下标
+        int idx = calculateTimeIdx(timeMillis);
+        //窗口滑动方法 计算当前窗格bucket
+        long windowStart = calculateWindowStart(timeMillis);
 
 
+        /*
+         * Get bucket item at given time from the array.
+         *
+         * (1) Bucket is absent, then just create a new bucket and CAS update to circular array.
+         * (2) Bucket is up-to-date, then just return the bucket.
+         * (3) Bucket is deprecated, then reset current bucket.
+         1. bucket不存在，则创建一个新并CAS更新。
+         2. bucket是当前最新的，返回。
+         3. bucket是过时并应该弃用，加锁并重置当前bucket.
+         4. windowStart<窗口开始时间，意味着输入的时间超过了intervalInMs，是错误的输入，理论上不应该输入。
+         */
+        while (true) {
+            WindowWrap<T> old = array.get(idx);
+            if (old == null) {
+                /*
+                 *     B0       B1      B2    NULL      B4
+                 * ||_______|_______|_______|_______|_______||___
+                 * 200     400     600     800     1000    1200  timestamp
+                 *                             ^
+                 *                          time=888
+                 *            bucket is empty, so create new and update
+                 *
+                 * If the old bucket is absent, then we create a new bucket at {@code windowStart},
+                 * then try to update circular array via a CAS operation. Only one thread can
+                 * succeed to update, while other threads yield its time slice.
+                 */
+                WindowWrap<T> window = new WindowWrap<T>(windowLengthInMs, windowStart, newEmptyBucket(timeMillis));
+                if (array.compareAndSet(idx, null, window)) {
+                    // Successfully updated, return the created bucket.
+                    return window;
+                } else {
+                    // Contention failed, the thread will yield its time slice to wait for bucket available.
+                    Thread.yield();
+                }
+            } else if (windowStart == old.windowStart()) {
+                /*
+                 *     B0       B1      B2     B3      B4
+                 * ||_______|_______|_______|_______|_______||___
+                 * 200     400     600     800     1000    1200  timestamp
+                 *                             ^
+                 *                          time=888
+                 *            startTime of Bucket 3: 800, so it's up-to-date
+                 *
+                 * If current {@code windowStart} is equal to the start timestamp of old bucket,
+                 * that means the time is within the bucket, so directly return the bucket.
+                 */
+                return old;
+            } else if (windowStart > old.windowStart()) {
+                /*
+                 *   (old)
+                 *             B0       B1      B2    NULL      B4
+                 * |_______||_______|_______|_______|_______|_______||___
+                 * ...    1200     1400    1600    1800    2000    2200  timestamp
+                 *                              ^
+                 *                           time=1676
+                 *          startTime of Bucket 2: 400, deprecated, should be reset
+                 *
+                 * If the start timestamp of old bucket is behind provided time, that means
+                 * the bucket is deprecated. We have to reset the bucket to current {@code windowStart}.
+                 * Note that the reset and clean-up operations are hard to be atomic,
+                 * so we need a update lock to guarantee the correctness of bucket update.
+                 *
+                 * The update lock is conditional (tiny scope) and will take effect only when
+                 * bucket is deprecated, so in most cases it won't lead to performance loss.
+                 */
+                if (updateLock.tryLock()) {
+                    try {
+                        // Successfully get the update lock, now we reset the bucket.
+                        return resetWindowTo(old, windowStart);
+                    } finally {
+                        updateLock.unlock();
+                    }
+                } else {
+                    // Contention failed, the thread will yield its time slice to wait for bucket available.
+                    Thread.yield();
+                }
+            } else if (windowStart < old.windowStart()) {
+                // Should not go through here, as the provided time is already behind.
+                return new WindowWrap<T>(windowLengthInMs, windowStart, newEmptyBucket(timeMillis));
+            }
+        }
+    }
+   
+````
 
 ## 总结
 
-![img.png](img.png)
+![取自sentinel的wiki](img.png)
+上图取自sentinel的wiki。
 
-
-## 后记
-
-以前对Sentinel有一些源码的阅读和理解，不得不感叹看过的东西又再忘记了，这次团队中一位小伙伴需要基于Sentinel开发一个组件，我需要再熟悉下做兜底。
+以前对Sentinel有一些源码的阅读和理解，不得不感叹看过的东西又再忘记了，这次让团队中一位小伙伴基于Sentinel开发一个组件，我再捡起来顺便记录下。
 本节主要聚焦于初始化和核心执行流程（非异步侧）。对基础数据结构也做了分析。
 
+重点分析了Sentinel core的初始化，ProcessSlotChain执行流程，Context和LeapArray。
 
 
 
