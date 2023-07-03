@@ -460,6 +460,7 @@ LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分
 本节主要聚焦于初始化和核心执行流程（非异步侧）。对基础数据结构也做了分析。
 
 重点分析了Sentinel core的初始化，ProcessSlotChain执行流程，Context和LeapArray。
+Sentinel经历过很多公司的线上大流量验证，我们也能在其中看到一些历史，学到一些质朴的清晰的可拓展的代码设计流程。
 
 
 
