@@ -316,7 +316,7 @@ CtEntry是当前Context中的一个链表结构，指代一个入口，包含：
 
 按照Sentinel的文档来看，是基于时间窗口，其实现算法是leapArray。
 
-统计的相关数据都用到node我们来看下Node的继承关系：
+统计的相关数据都用到node我们来看下Node的继承关系：  
 ![img_2.png](img_2.png)
 
 我们看到顶级父类是StatisticNode里面核心的属性是：`rollingCounterInSecond`和`rollingCounterInMinute`。其实现的数据结构就是LeapArray<MetricBucket>。 （DegradeSlot熔断降级是额外新增了LeapArray去统计）  
