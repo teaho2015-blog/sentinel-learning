@@ -314,6 +314,32 @@ CtEntry是当前Context中的一个链表结构，指代一个入口，包含：
 
 #### StatisticNode和leapArray
 
+按照Sentinel的文档来看，是基于时间窗口，其实现算法是leapArray。
+
+统计的相关数据都用到node我们来看下Node的继承关系：
+![img_2.png](img_2.png)
+
+我们看到顶级父类是StatisticNode里面核心的属性是：`rollingCounterInSecond`和`rollingCounterInMinute`。其实现的数据结构就是LeapArray<MetricBucket>。  
+LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分为取样个数(sampleCount)。
+* int windowLengthInMs 单窗格的毫秒
+* int sampleCount 取样个数
+* int intervalInMs 间隔时间(ms)
+* double intervalInSecond 间隔的时间(s)
+* AtomicReferenceArray<WindowWrap<MetricBucket>> array 存储窗格的接口。
+* ReentrantLock updateLock 插入和替换窗格的锁
+
+数组里取样位的数据结构是`MetricBucket`，`MetricBucket`存储以下几种类型的计数：
+* PASS
+* BLOCK 
+* EXCEPTION 
+* SUCCESS 
+* RT `Response Time`。
+* OCCUPIED_PASS
+
+结构整理如下：
+![leapArray_struct.jpg](leapArray_struct.jpg)
+
+
 
 
 ## 总结
@@ -324,7 +350,8 @@ CtEntry是当前Context中的一个链表结构，指代一个入口，包含：
 ## 后记
 
 以前对Sentinel有一些源码的阅读和理解，不得不感叹看过的东西又再忘记了，这次团队中一位小伙伴需要基于Sentinel开发一个组件，我需要再熟悉下做兜底。
-本节主要聚焦于核心执行流程（非异步侧）。
+本节主要聚焦于初始化和核心执行流程（非异步侧）。对基础数据结构也做了分析。
+
 
 
 
