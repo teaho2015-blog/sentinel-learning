@@ -220,7 +220,7 @@ display: none;
 </head>
 <body class="">
 <header>
-
+	<x-markdown src="section/header.md" />
 </header>
 <nav>
 <x-index />
