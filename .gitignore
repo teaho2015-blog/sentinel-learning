@@ -29,3 +29,5 @@ target
 node_modules/
 
 _book/
+
+index.html

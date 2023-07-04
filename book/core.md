@@ -1,4 +1,3 @@
-# Sentinel core原理分析
 
 ## 简介
 
@@ -20,8 +19,8 @@ U、O网上传闻代表Unit、Operation。
 
 ## 初始化
 
-Sentinel初始化会调用`InitExecutor.doInit()`这个方法。进行如下初始化：
-![sentinel_init_logic_flow.jpg](sentinel_init_logic_flow.jpg)
+Sentinel初始化会调用`InitExecutor.doInit()`这个方法。进行如下初始化：  
+![sentinel_init_logic_flow.jpg](/book/sentinel_init_logic_flow.jpg)
 
 1. 通过SPI加载InitFunc（Sentinel SPI类似Spring SPI，有兴趣可看下@SPI注解和SPILoader类）。
 2. 排序
@@ -294,8 +293,8 @@ ProcessorSlotChain的结构是一个单向链表，默认的链表元素有（�
         }
 ````
 
-这段代码执行时的整体数据依赖关系：
-![context_node_struct.jpg](context_node_struct.jpg)
+这段代码执行时的整体数据依赖关系：  
+![context_node_struct.jpg](/book/context_node_struct.jpg)
 
 
 可看到Context的结构包含了：
@@ -317,7 +316,7 @@ CtEntry是当前Context中的一个链表结构，指代一个入口，包含：
 按照Sentinel的文档来看，是基于时间窗口，其实现算法是leapArray。
 
 统计的相关数据都用到node我们来看下Node的继承关系：  
-![img_2.png](img_2.png)
+![img_2.png](/book/img_2.png)
 
 我们看到顶级父类是StatisticNode里面核心的属性是：`rollingCounterInSecond`和`rollingCounterInMinute`。其实现的数据结构就是LeapArray<MetricBucket>。 （DegradeSlot熔断降级是额外新增了LeapArray去统计）  
 LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分为取样个数(sampleCount)。
@@ -336,8 +335,8 @@ LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分
 * RT `Response Time`。
 * OCCUPIED_PASS
 
-结构整理如下：
-![leapArray_struct.jpg](leapArray_struct.jpg)
+结构整理如下：  
+![leapArray_struct.jpg](/book/leapArray_struct.jpg)
 
 分析下leapArray的核心方法：
 ````
@@ -453,7 +452,7 @@ LeapArray是基于时间窗口的实现，会把一段时间(intervalInMs)切分
 
 ## 总结
 
-![取自sentinel的wiki](img.png)
+![取自sentinel的wiki](/book/img.png)  
 上图取自sentinel的wiki。
 
 以前对Sentinel有一些源码的阅读和理解，不得不感叹看过的东西又再忘记了，这次让团队中一位小伙伴基于Sentinel开发一个组件，我再捡起来顺便记录下。
